@@ -48,12 +48,19 @@ int main(int argc, char** argv)
     parser.add_option("dataset", "Directory containing the dataset.", 1);
     parser.add_option("td", "Depth used in trees generated for training. More depth more accuracy in preditions (also model size increase).", 1);
     parser.add_option("threads", "Number of threads used in training.", 1);
+    parser.add_option("oversampling", "Number of oversampling amount needed", 1);
+    parser.add_option("cascade", "Cascade Depth is the number of cascades used to train the model. This parameter affect either the size and accuracy of a model.", 1);
+    parser.add_option("nu", "Nu is the regularization parameter. It determines the ability of the model to generalize and learn patterns instead of fixed-data.", 1);
+    parser.add_option("test-splits", "Is the number of split features sampled at each node. This parameter is responsible for selecting the best features at each cascade during the training process. The parameter affects the training speed and the model accuracy.", 1);
+    parser.add_option("features-pool-size", "Feature Pool Size denotes the number of pixels used to generate the features for the random trees at each cascade. Larger amount of pixels will lead the algorithm to be more robust and accurate but to execute slower.", 1);
     parser.add_option("h", "Display this help message.");
+
+    int nOptions = 9;
     // now I will parse the command line
     parser.parse(argc, argv);
 
     // check if the -h option was given on the command line
-    if (parser.option("h") || argc < 2 || argc > 4)
+    if (parser.option("h") || argc < 2 || argc > nOptions)
     {
       // display all the command line options
       cout << "Usage: " << argv[0] << " --dataset path_to_dataset  --td (Trees depht: default 2) --threads (Number of threads for training: default 2)\n";
@@ -72,8 +79,14 @@ int main(int argc, char** argv)
       return -1;
     }
     
+    // We obtain the params or its default values
     int treeDepthParam = get_option(parser, "td", 2);
     int threadsParam = get_option(parser, "threads", 2);
+    double nu = get_option(parser, "nu", 0.1);
+    int oversampling = get_option(parser, "oversampling", 20);
+    int cascade = get_option(parser, "cascade", 10);
+    int testSplitsParam = get_option(parser, "test-splits", 20);
+    int featuresPoolSizeParam = get_option(parser, "features-pool-size", 400);
 
     if (treeDepthParam < 2)
       treeDepthParam = 2;
@@ -126,12 +139,15 @@ int main(int argc, char** argv)
     // have a very small dataset.  In particular, setting the oversampling
     // to a high amount (300) effectively boosts the training set size, so
     // that helps this example.
-    trainer.set_oversampling_amount(300);
+    trainer.set_oversampling_amount(oversampling);
     // I'm also reducing the capacity of the model by explicitly increasing
     // the regularization (making nu smaller) and by using trees with
     // smaller depths.  
-    trainer.set_nu(0.05);
+    trainer.set_nu(nu);
     trainer.set_tree_depth(treeDepthParam);
+    trainer.set_cascade_depth(cascade);
+    trainer.set_num_test_splits(testSplitsParam);
+    trainer.set_feature_pool_size(featuresPoolSizeParam);
 
     // some parts of training process can be parallelized.
     // Trainer will use this count of threads when possible
