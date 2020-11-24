@@ -19,6 +19,8 @@
 
 #include <dlib/image_processing.h>
 #include <dlib/data_io.h>
+#include <dlib/cmd_line_parser.h>
+#include <dlib/cmd_line_parser/get_option.h>
 #include <iostream>
 
 using namespace dlib;
@@ -42,33 +44,37 @@ int main(int argc, char** argv)
 {
   try
   {
-    // In this example we are going to train a shape_predictor based on the
-    // small faces dataset in the examples/faces directory.  So the first
-    // thing we do is load that dataset.  This means you need to supply the
-    // path to this faces folder as a command line argument so we will know
-    // where it is.
-    if (argc < 2 || argc > 4)
+    command_line_parser parser;
+    parser.add_option("dataset", "Directory containing the dataset.", 1);
+    parser.add_option("td", "Depth used in trees generated for training. More depth more accuracy in preditions (also model size increase).", 1);
+    parser.add_option("threads", "Number of threads used in training.", 1);
+    parser.add_option("h", "Display this help message.");
+    // now I will parse the command line
+    parser.parse(argc, argv);
+
+    // check if the -h option was given on the command line
+    if (parser.option("h") || argc < 2 || argc > 4)
     {
-      cout << "Give the path to the examples/faces directory as the argument to this" << endl;
-      cout << "program.  For example, if you are in the examples folder then execute " << endl;
-      cout << "this program by running: " << endl;
-      cout << "   ./train_shape_predictor_ex faces treeDepth threads" << endl;
-      cout << "      faces: 	Directory containing the dataset" << endl;
-      cout << "      treeDepth:	Depth used in trees generated for training. More depth more accuracy in preditions (also model size increase)." << endl;
-      cout << "      threads:	Number of threads used in training." << endl;
-      cout << endl;
+      // display all the command line options
+      cout << "Usage: " << argv[0] << " --dataset path_to_dataset  --td (Trees depht: default 2) --threads (Number of threads for training: default 2)\n";
+      // This function prints out a nicely formatted list of
+      // all the options the parser has
+      parser.print_options();
       return 0;
     }
-    const std::string faces_directory = argv[1];
-    int treeDepthParam = -1;
-    int threadsParam = -1;
-    if (argc == 3) {
-      treeDepthParam = atoi(argv[2]);
+
+    std::string dataset_directory;
+    if (parser.option("dataset")) {
+      dataset_directory = parser.option("dataset").argument();
     }
-    else if (argc == 4) {
-      treeDepthParam = atoi(argv[2]);
-      threadsParam = atoi(argv[3]);
+    else {
+      cout << "Error in arguments: You must supply dataset location path." << endl;
+      return -1;
     }
+    
+    int treeDepthParam = get_option(parser, "td", 2);
+    int threadsParam = get_option(parser, "threads", 2);
+
     if (treeDepthParam < 2)
       treeDepthParam = 2;
 
@@ -106,9 +112,9 @@ int main(int argc, char** argv)
     // graphical tool for labeling objects in images.  To see how to use it
     // read the tools/imglab/README.txt file.
     cout << "Loading training images" << endl;
-    load_image_dataset(images_train, faces_train, faces_directory + "/training_with_face_landmarks.xml");
+    load_image_dataset(images_train, faces_train, dataset_directory + "/training_with_face_landmarks.xml");
     cout << "Loading testing images" << endl;
-    load_image_dataset(images_test, faces_test, faces_directory + "/testing_with_face_landmarks.xml");
+    load_image_dataset(images_test, faces_test, dataset_directory + "/testing_with_face_landmarks.xml");
 
     // Now make the object responsible for training the model.  
     shape_predictor_trainer trainer;
