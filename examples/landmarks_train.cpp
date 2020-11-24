@@ -63,11 +63,11 @@ int main(int argc, char** argv)
 	int treeDepthParam = -1;
 	int threadsParam = -1;
 	if (argc == 3) {
-		treeDepthParam = atoi(argv[2);
+		treeDepthParam = atoi(argv[2]);
 	}
 	else if (argc == 4) {
-		treeDepthParam = atoi(argv[2);
-		threadsParam = atoi(argv[3);
+		treeDepthParam = atoi(argv[2]);
+		threadsParam = atoi(argv[3]);
 	}
 	if (treeDepthParam < 2)
 		treeDepthParam = 2;
