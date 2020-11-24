@@ -47,16 +47,33 @@ int main(int argc, char** argv)
         // thing we do is load that dataset.  This means you need to supply the
         // path to this faces folder as a command line argument so we will know
         // where it is.
-        if (argc != 2)
+        if (argc < 2 || argc > 4)
         {
             cout << "Give the path to the examples/faces directory as the argument to this" << endl;
             cout << "program.  For example, if you are in the examples folder then execute " << endl;
             cout << "this program by running: " << endl;
-            cout << "   ./train_shape_predictor_ex faces" << endl;
+            cout << "   ./train_shape_predictor_ex faces treeDepth threads" << endl;
+            cout << "      faces: 	Directory containing the dataset" << endl;
+            cout << "      treeDepth:	Depth used in trees generated for training. More depth more accuracy in preditions (also model size increase)." << endl;
+            cout << "      threads:	Number of threads used in training." << endl;
             cout << endl;
             return 0;
         }
         const std::string faces_directory = argv[1];
+	int treeDepthParam = -1;
+	int threadsParam = -1;
+	if (argc == 3) {
+		treeDepthParam = atoi(argv[2);
+	}
+	else if (argc == 4) {
+		treeDepthParam = atoi(argv[2);
+		threadsParam = atoi(argv[3);
+	}
+	if (treeDepthParam < 2)
+		treeDepthParam = 2;
+
+	if (threadsParam < 2)
+		threadsParam = 2;
         // The faces directory contains a training dataset and a separate
         // testing dataset.  The training data consists of 4 images, each
         // annotated with rectangles that bound each human face along with 68
@@ -108,11 +125,11 @@ int main(int argc, char** argv)
         // the regularization (making nu smaller) and by using trees with
         // smaller depths.  
         trainer.set_nu(0.05);
-        trainer.set_tree_depth(2);
+        trainer.set_tree_depth(treeDepthParam);
 
         // some parts of training process can be parallelized.
         // Trainer will use this count of threads when possible
-        trainer.set_num_threads(2);
+        trainer.set_num_threads(threadsParam);
 
         // Tell the trainer to print status messages to the console so we can
         // see how long the training will take.
