@@ -256,7 +256,7 @@ add_example(train_shape_predictor_ex)
 add_example(using_custom_kernels_ex)
 add_gui_example(video_tracking_ex)
 add_example(xml_parser_ex)
-
+add_example(landmarks_train)
 
 if (DLIB_LINK_WITH_SQLITE3)
    add_example(sqlite_ex)
