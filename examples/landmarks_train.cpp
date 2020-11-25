@@ -77,7 +77,7 @@ int main(int argc, char** argv)
     parser.add_option("save-to", "Save model to fillename expecified.", 1);
     parser.add_option("h", "Display this help message.");
 
-    int nOptions = 9;
+    int nOptions = 10;
     // now I will parse the command line
     parser.parse(argc, argv);
 
