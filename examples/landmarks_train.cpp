@@ -77,12 +77,11 @@ int main(int argc, char** argv)
     parser.add_option("save-to", "Save model to fillename expecified.", 1);
     parser.add_option("h", "Display this help message.");
 
-    int nOptions = 10;
     // now I will parse the command line
     parser.parse(argc, argv);
 
     // check if the -h option was given on the command line
-    if (parser.option("h") || argc < 2 || argc > nOptions)
+    if (parser.option("h") || argc < 2)
     {
       // display all the command line options
       cout << "Usage: " << argv[0] << " --dataset path_to_dataset  --td (Trees depht: default 2) --threads (Number of threads for training: default 2)\n";
