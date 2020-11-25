@@ -40,6 +40,27 @@ std::vector<std::vector<double> > get_interocular_distances(
 
 // ----------------------------------------------------------------------------------------
 
+void writeConfigToFile(std::string configFile, shape_predictor_trainer trainer) {
+  ofstream file;
+  file.open(configFile);
+  file << "Landmarks trainer configuration used\n";
+  file << "---------------------------------------------------------------------------\n";
+  file << "Cascade depth: " << trainer.get_cascade_depth() << "\n";
+  file << "Feature pool region padding: " << trainer.get_feature_pool_region_padding() << "\n";
+  file << "Feature pool size: " << trainer.get_feature_pool_size() << "\n";
+  file << "Lambda: " << trainer.get_lambda() << "\n";
+  file << "Nu: " << trainer.get_nu() << "\n";
+  file << "Num test splits: " << trainer.get_num_test_splits() << "\n";
+  file << "Num threads: " << trainer.get_num_threads() << "\n";
+  file << "Num trees per cascade level: " << trainer.get_num_trees_per_cascade_level() << "\n";
+  file << "Oversampling amount: " << trainer.get_oversampling_amount() << "\n";
+  file << "Oversampling translation jitter: " << trainer.get_oversampling_translation_jitter() << "\n";
+  file << "Padding mode: " << trainer.get_padding_mode() << "\n";
+  file << "Random seed: " << trainer.get_random_seed() << "\n";
+  file << "Tree depth: " << trainer.get_tree_depth() << "\n";
+  file.close();
+}
+
 int main(int argc, char** argv)
 {
   try
@@ -53,6 +74,7 @@ int main(int argc, char** argv)
     parser.add_option("nu", "Nu is the regularization parameter. It determines the ability of the model to generalize and learn patterns instead of fixed-data.", 1);
     parser.add_option("test-splits", "Is the number of split features sampled at each node. This parameter is responsible for selecting the best features at each cascade during the training process. The parameter affects the training speed and the model accuracy.", 1);
     parser.add_option("features-pool-size", "Feature Pool Size denotes the number of pixels used to generate the features for the random trees at each cascade. Larger amount of pixels will lead the algorithm to be more robust and accurate but to execute slower.", 1);
+    parser.add_option("save-to", "Save model to fillename expecified.", 1);
     parser.add_option("h", "Display this help message.");
 
     int nOptions = 9;
@@ -78,7 +100,15 @@ int main(int argc, char** argv)
       cout << "Error in arguments: You must supply dataset location path." << endl;
       return -1;
     }
-    
+
+    std::string modelFilename;
+    if (parser.option("save-to")) {
+      modelFilename = parser.option("save-to").argument();
+    }
+    else {
+      modelFilename = "sp.dat";
+    }
+
     // We obtain the params or its default values
     int treeDepthParam = get_option(parser, "td", 2);
     int threadsParam = get_option(parser, "threads", 2);
@@ -180,7 +210,10 @@ int main(int argc, char** argv)
       test_shape_predictor(sp, images_test, faces_test, get_interocular_distances(faces_test)) << endl;
 
     // Finally, we save the model to disk so we can use it later.
-    serialize("sp.dat") << sp;
+    serialize(modelFilename) << sp;
+
+    // Write also configuration
+    writeConfigToFile(modelFilename + ".cfg", trainer);
   }
   catch (exception& e)
   {
