@@ -19,6 +19,8 @@
 
 #include <dlib/image_processing.h>
 #include <dlib/data_io.h>
+#include <dlib/global_optimization.h>
+#include <dlib/logger.h>
 #include <dlib/cmd_line_parser.h>
 #include <dlib/cmd_line_parser/get_option.h>
 #include <iostream>
@@ -61,6 +63,125 @@ void writeConfigToFile(std::string configFile, shape_predictor_trainer trainer) 
   file.close();
 }
 
+/**
+  This method obtain the best hyper parameters by using the method 
+*/
+void autotuneHyperParams(const std::string &datasetPath, const unsigned int threads)
+{
+  // Configure logger
+  ofstream fileStream;
+  fileStream.open("autotune.log");
+  logger log("autotune");
+  log.set_level(dlib::LINFO);
+  log.set_output_stream(fileStream);
+
+  dlib::array<array2d<unsigned char> > images_train, images_test;
+  std::vector<std::vector<full_object_detection> > faces_train, faces_test;
+
+  // Now we load the data.  These XML files list the images in each
+  // dataset and also contain the positions of the face boxes and
+  // landmarks (called parts in the XML file).  Obviously you can use any
+  // kind of input format you like so long as you store the data into
+  // images_train and faces_train.  But for convenience dlib comes with
+  // tools for creating and loading XML image dataset files.  Here you see
+  // how to load the data.  To create the XML files you can use the imglab
+  // tool which can be found in the tools/imglab folder.  It is a simple
+  // graphical tool for labeling objects in images.  To see how to use it
+  // read the tools/imglab/README.txt file.
+  cout << "Loading training images" << endl;
+  log << LINFO << "Loading training images";
+  load_image_dataset(images_train, faces_train, datasetPath + "/training_with_face_landmarks.xml");
+  cout << "Loading testing images" << endl;
+  log << LINFO << "Loading testing images";
+  load_image_dataset(images_test, faces_test, datasetPath + "/testing_with_face_landmarks.xml");
+
+
+  log << LINFO << "Creating train score function";
+
+  auto trainer_score = [&](const unsigned int oversampling, const double nu, const unsigned int treeDepth,
+    const unsigned int cascade, const unsigned int testSplits, const unsigned int featurePoolSize)
+  {
+    shape_predictor_trainer trainer;
+    // This algorithm has a bunch of parameters you can mess with.  The
+    // documentation for the shape_predictor_trainer explains all of them.
+    // You should also read Kazemi's paper which explains all the parameters
+    // in great detail.  However, here I'm just setting three of them
+    // differently than their default values.  I'm doing this because we
+    // have a very small dataset.  In particular, setting the oversampling
+    // to a high amount (300) effectively boosts the training set size, so
+    // that helps this example.
+    trainer.set_oversampling_amount(oversampling);
+    // I'm also reducing the capacity of the model by explicitly increasing
+    // the regularization (making nu smaller) and by using trees with
+    // smaller depths.  
+    trainer.set_nu(nu);
+    trainer.set_tree_depth(treeDepth);
+    trainer.set_cascade_depth(cascade);
+    trainer.set_num_test_splits(testSplits);
+    trainer.set_feature_pool_size(featurePoolSize);
+
+    // some parts of training process can be parallelized.
+    // Trainer will use this count of threads when possible
+    trainer.set_num_threads(threads);
+
+    // Tell the trainer to print status messages to the console so we can
+    // see how long the training will take.
+    trainer.be_verbose();
+
+    // Now finally generate the shape model
+    shape_predictor sp = trainer.train(images_train, faces_train);
+
+
+    return test_shape_predictor(sp, images_test, faces_test, get_interocular_distances(faces_test));
+  };
+
+  // Call optimization method
+  cout << "Calling optimization process ..." << endl;
+  log << LINFO << "Calling optimization process ...";
+  auto result = find_max_global(trainer_score,
+    { 5, 0.01, 2, 6, 20, 200 },  // lower bound constraints on gamma, c1, and c2, respectively
+    { 30,  0.99,  8, 18, 300, 800},   // upper bound constraints on gamma, c1, and c2, respectively
+    { true, false, true, true, true, true },
+    max_function_calls(10));
+
+  shape_predictor_trainer best;
+
+  int oversampling = result.x(0);
+  double nu = result.x(1);
+  int tree_depth = result.x(2);
+  int cascasde_depth = result.x(3);
+  int test_splits = result.x(4);
+  int feature_pool_size = result.x(5);
+
+  // Write results to console
+  cout << "Results" << endl;
+  cout << "Oversampling " << oversampling << endl;
+  cout << "Nu " << nu << endl;
+  cout << "Tree depth " << tree_depth << endl;
+  cout << "Cascade depth " << cascasde_depth << endl;
+  cout << "Test splits " << test_splits << endl;
+  cout << "Feature pool size " << feature_pool_size << endl;
+
+  log << LINFO << "Results";
+  log << LINFO << "Oversampling " << oversampling;
+  log << LINFO << "Nu " << nu;
+  log << LINFO << "Tree depth " << tree_depth;
+  log << LINFO << "Cascade depth " << cascasde_depth;
+  log << LINFO << "Test splits " << test_splits;
+  log << LINFO << "Feature pool size " << feature_pool_size;
+
+
+
+  best.set_oversampling_amount(oversampling);
+  best.set_nu(nu);
+  best.set_tree_depth(tree_depth);
+  best.set_cascade_depth(cascasde_depth);
+  best.set_num_test_splits(test_splits);
+  best.set_feature_pool_size(feature_pool_size);
+
+  writeConfigToFile("best_config_obtained.cfg", best);
+}
+
 int main(int argc, char** argv)
 {
   try
@@ -75,6 +196,7 @@ int main(int argc, char** argv)
     parser.add_option("test-splits", "Is the number of split features sampled at each node. This parameter is responsible for selecting the best features at each cascade during the training process. The parameter affects the training speed and the model accuracy.", 1);
     parser.add_option("features-pool-size", "Feature Pool Size denotes the number of pixels used to generate the features for the random trees at each cascade. Larger amount of pixels will lead the algorithm to be more robust and accurate but to execute slower.", 1);
     parser.add_option("save-to", "Save model to fillename expecified.", 1);
+    parser.add_option("autotune", "This option enables the autotune algorithm to find best hyperparameters of this machine learning algorithm.");
     parser.add_option("h", "Display this help message.");
 
     // now I will parse the command line
@@ -122,6 +244,15 @@ int main(int argc, char** argv)
 
     if (threadsParam < 2)
       threadsParam = 2;
+
+    // Check if autotune is enabled
+    if (parser.option("autotune"))
+    {
+      // Call autotune process
+      autotuneHyperParams(dataset_directory, threadsParam);
+      // After autotuning exit
+      return 0;
+    }
     // The faces directory contains a training dataset and a separate
     // testing dataset.  The training data consists of 4 images, each
     // annotated with rectangles that bound each human face along with 68
