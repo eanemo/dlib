@@ -138,7 +138,7 @@ void autotuneHyperParams(const std::string &datasetPath, const unsigned int thre
   // Call optimization method
   cout << "Calling optimization process ..." << endl;
   log << LINFO << "Calling optimization process ...";
-  auto result = find_max_global(trainer_score,
+  auto result = find_min_global(trainer_score,
     { 5, 0.01, 2, 6, 20, 200 },  // lower bound constraints on gamma, c1, and c2, respectively
     { 30,  0.99,  8, 18, 300, 800},   // upper bound constraints on gamma, c1, and c2, respectively
     { true, false, true, true, true, true },
